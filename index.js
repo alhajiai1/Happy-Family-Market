@@ -6,12 +6,11 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
 require('./config/db'); // opens SQLite connection, creates tables
-const errorHandler = require('./middleware/errorhandler');
-
+const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
-const productRoutes = require('./routes/productroutes');
-const sellerRoutes = require('./Routes/sellerroutes');
-const paymentRoutes = require('./Routes/paymentroutes');
+const productRoutes = require('./routes/productRoutes');
+const sellerRoutes = require('./routes/sellerRoutes');
+const paymentRoutes = require('./routes/paymentRoutes');
 
 ['JWT_SECRET', 'PAYSTACK_SECRET_KEY'].forEach((key) => {
   if (!process.env[key]) {
