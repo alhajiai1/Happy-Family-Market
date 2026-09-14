@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
 const sellerRoutes = require('./routes/sellerRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
 
 ['JWT_SECRET', 'PAYSTACK_SECRET_KEY'].forEach((key) => {
   if (!process.env[key]) {
@@ -46,6 +47,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/sellers', sellerRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api', reviewRoutes);
 
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
