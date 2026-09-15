@@ -31,7 +31,7 @@ function signToken(user) {
 }
 
 function codeExpiryTimestamp() {
-  return new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 minutes from now
+  return new Date(Date.now() + 15 * 60 * 1000).toISOString();
 }
 
 router.post(
@@ -60,12 +60,20 @@ router.post(
         verificationExpires: expires,
       });
 
-      await sendVerificationEmail(email, name, code);
+      let emailSent = true;
+      try {
+        await sendVerificationEmail(email, name, code);
+      } catch (emailErr) {
+        emailSent = false;
+        console.error('Failed to send verification email during registration:', emailErr.message);
+      }
 
-      // No token yet — they must verify first.
       res.status(201).json({
-        message: 'Account created. Check your email for a verification code.',
+        message: emailSent
+          ? 'Account created. Check your email for a verification code.'
+          : 'Account created, but we could not send the verification email right now. Use "Resend code" to try again.',
         email: user.email,
+        emailSent,
       });
     } catch (err) {
       next(err);
@@ -121,7 +129,13 @@ router.post(
       const code = generateVerificationCode();
       const expires = codeExpiryTimestamp();
       await setVerificationCode(user.id, code, expires);
-      await sendVerificationEmail(email, user.name, code);
+
+      try {
+        await sendVerificationEmail(email, user.name, code);
+      } catch (emailErr) {
+        console.error('Failed to resend verification email:', emailErr.message);
+        return res.status(502).json({ error: 'Could not send email right now. Please try again in a moment.' });
+      }
 
       res.json({ message: 'A new code has been sent.' });
     } catch (err) {

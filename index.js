@@ -5,7 +5,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 
-require('./config/db'); // opens SQLite connection, creates tables
+require('./config/db');
 const errorHandler = require('./middleware/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
@@ -18,6 +18,15 @@ const reviewRoutes = require('./routes/reviewRoutes');
     console.error(`Missing required env var: ${key}`);
     process.exit(1);
   }
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+  process.exit(1);
 });
 
 const app = express();

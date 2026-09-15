@@ -60,26 +60,33 @@ router.post(
       await createOrder({ buyerId: req.user.id, totalAmountGHS: total, reference, items: orderItems });
 
       let paystackData;
-      if (sellerTotals.size === 1) {
-        const [subaccountCode] = sellerTotals.keys();
-        paystackData = await initializeSingleSellerTransaction({
-          email: req.user.email,
-          amountGHS: total,
-          subaccountCode,
-          reference,
-          callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
-        });
-      } else {
-        const sellerShares = [...sellerTotals.entries()].map(([code, amount]) => ({
-          subaccountCode: code,
-          percentage: (amount / total) * (100 - COMMISSION),
-        }));
-        paystackData = await initializeMultiSellerTransaction({
-          email: req.user.email,
-          amountGHS: total,
-          sellerShares,
-          reference,
-          callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
+      try {
+        if (sellerTotals.size === 1) {
+          const [subaccountCode] = sellerTotals.keys();
+          paystackData = await initializeSingleSellerTransaction({
+            email: req.user.email,
+            amountGHS: total,
+            subaccountCode,
+            reference,
+            callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
+          });
+        } else {
+          const sellerShares = [...sellerTotals.entries()].map(([code, amount]) => ({
+            subaccountCode: code,
+            percentage: (amount / total) * (100 - COMMISSION),
+          }));
+          paystackData = await initializeMultiSellerTransaction({
+            email: req.user.email,
+            amountGHS: total,
+            sellerShares,
+            reference,
+            callbackUrl: process.env.PAYSTACK_CALLBACK_URL,
+          });
+        }
+      } catch (paystackErr) {
+        console.error('Paystack initialization failed:', paystackErr.message);
+        return res.status(502).json({
+          error: 'Could not start payment right now. Your cart is safe — please try again in a moment.',
         });
       }
 
@@ -123,14 +130,16 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   const event = JSON.parse(req.body);
   if (event.event === 'charge.success') {
     const order = await findOrderByReference(event.data.reference);
-    if (order && order.status !== 'paid') await finalizeOrder(order);
+    if (order) await finalizeOrder(order);
   }
 
   res.sendStatus(200);
 });
 
 async function finalizeOrder(order) {
-  await markOrderPaid(order.id);
+  const { alreadyPaid } = await markOrderPaid(order.id);
+  if (alreadyPaid) return;
+
   for (const item of order.items) {
     await decrementStock(item.product_id, item.quantity);
   }

@@ -23,8 +23,12 @@ async function findOrderByReference(reference) {
   return order;
 }
 
-function markOrderPaid(orderId) {
-  return run(`UPDATE orders SET status = 'paid' WHERE id = ?`, [orderId]);
+async function markOrderPaid(orderId) {
+  const result = await run(
+    `UPDATE orders SET status = 'paid' WHERE id = ? AND status != 'paid'`,
+    [orderId]
+  );
+  return { alreadyPaid: result.changes === 0 };
 }
 
 module.exports = { createOrder, findOrderByReference, markOrderPaid };
