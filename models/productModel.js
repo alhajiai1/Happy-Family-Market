@@ -52,6 +52,31 @@ function decrementStock(id, quantity) {
   return run(`UPDATE products SET stock = stock - ? WHERE id = ?`, [quantity, id]);
 }
 
+async function addProductImages(productId, imageUrls) {
+  const rows = await all(`SELECT COALESCE(MAX(sort_order), -1) AS maxOrder FROM product_images WHERE product_id = ?`, [productId]);
+  let nextOrder = (rows[0]?.maxOrder ?? -1) + 1;
+
+  for (const url of imageUrls) {
+    await run(
+      `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)`,
+      [productId, url, nextOrder]
+    );
+    nextOrder += 1;
+  }
+  return findProductImages(productId);
+}
+
+function findProductImages(productId) {
+  return all(
+    `SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order ASC`,
+    [productId]
+  );
+}
+
+function deleteProductImage(imageId, productId) {
+  return run(`DELETE FROM product_images WHERE id = ? AND product_id = ?`, [imageId, productId]);
+}
+
 function formatProduct(p) {
   if (!p) return null;
   return {
@@ -66,6 +91,16 @@ function formatProduct(p) {
   };
 }
 
+function formatProductImage(img) {
+  if (!img) return null;
+  return {
+    id: img.id,
+    productId: img.product_id,
+    imageUrl: img.image_url,
+    sortOrder: img.sort_order,
+  };
+}
+
 module.exports = {
   createProduct,
   findProducts,
@@ -74,5 +109,9 @@ module.exports = {
   updateProduct,
   deleteProduct,
   decrementStock,
+  addProductImages,
+  findProductImages,
+  deleteProductImage,
   formatProduct,
+  formatProductImage,
 };
