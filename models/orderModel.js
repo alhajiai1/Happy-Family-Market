@@ -2,13 +2,13 @@ const { run, get, all } = require('../config/db');
 
 async function createOrder({ buyerId, totalAmountGHS, reference, items }) {
   const orderResult = await run(
-    `INSERT INTO orders (buyer_id, total_amount_ghs, paystack_reference, status) VALUES (?, ?, ?, 'pending')`,
+    `INSERT INTO orders (buyer_id, total_amount_ghs, paystack_reference, status) VALUES ($1, $2, $3, 'pending') RETURNING id`,
     [buyerId, totalAmountGHS, reference]
   );
 
   for (const item of items) {
     await run(
-      `INSERT INTO order_items (order_id, product_id, seller_id, title, price, quantity) VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO order_items (order_id, product_id, seller_id, title, price, quantity) VALUES ($1, $2, $3, $4, $5, $6)`,
       [orderResult.id, item.productId, item.sellerId, item.title, item.price, item.quantity]
     );
   }
@@ -17,15 +17,15 @@ async function createOrder({ buyerId, totalAmountGHS, reference, items }) {
 }
 
 async function findOrderByReference(reference) {
-  const order = await get(`SELECT * FROM orders WHERE paystack_reference = ?`, [reference]);
+  const order = await get(`SELECT * FROM orders WHERE paystack_reference = $1`, [reference]);
   if (!order) return null;
-  order.items = await all(`SELECT * FROM order_items WHERE order_id = ?`, [order.id]);
+  order.items = await all(`SELECT * FROM order_items WHERE order_id = $1`, [order.id]);
   return order;
 }
 
 async function markOrderPaid(orderId) {
   const result = await run(
-    `UPDATE orders SET status = 'paid' WHERE id = ? AND status != 'paid'`,
+    `UPDATE orders SET status = 'paid' WHERE id = $1 AND status != 'paid'`,
     [orderId]
   );
   return { alreadyPaid: result.changes === 0 };

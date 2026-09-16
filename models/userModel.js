@@ -5,31 +5,30 @@ async function createUser({ name, email, password, role, verificationCode, verif
   const hashed = await bcrypt.hash(password, 12);
   const result = await run(
     `INSERT INTO users (name, email, password, role, verification_code, verification_code_expires, is_verified)
-     VALUES (?, ?, ?, ?, ?, ?, 0)`,
+     VALUES ($1, $2, $3, $4, $5, $6, false) RETURNING id`,
     [name, email, hashed, role || 'buyer', verificationCode, verificationExpires]
   );
   return findUserById(result.id);
 }
 
 async function createGoogleUser({ name, email, googleId, role }) {
-  // Google already verified this email for us — skip the code step.
   const result = await run(
-    `INSERT INTO users (name, email, google_id, role, is_verified) VALUES (?, ?, ?, ?, 1)`,
+    `INSERT INTO users (name, email, google_id, role, is_verified) VALUES ($1, $2, $3, $4, true) RETURNING id`,
     [name, email, googleId, role || 'buyer']
   );
   return findUserById(result.id);
 }
 
 function findUserByEmail(email) {
-  return get(`SELECT * FROM users WHERE email = ?`, [email]);
+  return get(`SELECT * FROM users WHERE email = $1`, [email]);
 }
 
 function findUserByGoogleId(googleId) {
-  return get(`SELECT * FROM users WHERE google_id = ?`, [googleId]);
+  return get(`SELECT * FROM users WHERE google_id = $1`, [googleId]);
 }
 
 function findUserById(id) {
-  return get(`SELECT * FROM users WHERE id = ?`, [id]);
+  return get(`SELECT * FROM users WHERE id = $1`, [id]);
 }
 
 function comparePassword(candidate, hashed) {
@@ -37,19 +36,19 @@ function comparePassword(candidate, hashed) {
 }
 
 function setSubaccountCode(userId, code) {
-  return run(`UPDATE users SET paystack_subaccount_code = ? WHERE id = ?`, [code, userId]);
+  return run(`UPDATE users SET paystack_subaccount_code = $1 WHERE id = $2`, [code, userId]);
 }
 
 function setVerificationCode(userId, code, expires) {
   return run(
-    `UPDATE users SET verification_code = ?, verification_code_expires = ? WHERE id = ?`,
+    `UPDATE users SET verification_code = $1, verification_code_expires = $2 WHERE id = $3`,
     [code, expires, userId]
   );
 }
 
 function markVerified(userId) {
   return run(
-    `UPDATE users SET is_verified = 1, verification_code = NULL, verification_code_expires = NULL WHERE id = ?`,
+    `UPDATE users SET is_verified = true, verification_code = NULL, verification_code_expires = NULL WHERE id = $1`,
     [userId]
   );
 }
